@@ -1,5 +1,5 @@
 # franz
-(F)orecast (R)eliability (A)nalysis tool(Z) -- franz is a python library providing statistical tests of forecast reliability and associated tools
+(F)orecast (R)eliability (AN)alysis tool(Z) -- franz is a python library providing statistical tests of forecast reliability and associated tools
 
 franz is a toolbox to test the reliability of probability forecasting systems (and related). To use franz, an archive of forecasts and corresponding verifications is needed. At the moment, the following types of forecasts are supported:
 
