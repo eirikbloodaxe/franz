@@ -1,5 +1,5 @@
 #   
-# (F)orecast (R)eliability (A)nalysis tool(Z) -- FRANZ
+# (F)orecast (R)eliability (AN)alysis tool(Z) -- FRANZ
 #
 # Version 0.1 (June 2019)
 #
@@ -24,6 +24,7 @@ import scipy.stats as stats
 from pandas import crosstab
 
 def extend_to_og_basis(pp):
+    
     """ function basis = extend_to_og_basis(pp):
     
     Extends a given d-dimensional vector v to an orthonormal basis of R^d. The vector v is assumed to have sum(v) = nonzero. The algorithm will extend v with an orthonormal basis of
@@ -124,7 +125,7 @@ def category_test(Y, p, lead_time, strat):
     
 def moment_test(ver, moms, lead_time, strat):
 
-    """function [pval, covar_est] = def moment_test(ver, moms, lead_time, strat)
+    """function [pval, covar_est] = moment_test(ver, moms, lead_time, strat)
    
     Performs a generalised GOF test for first and second moment, using the statistic
 
@@ -254,12 +255,12 @@ def pit_test(pit_vals, lead_time, strat, ord_moments=1, return_hists = False):
 
 
 def rank_test(ver, ens, lead_time, strat, contrasts=[], return_counts = False):
+
     """function [pval, rnks_vals, covar_est] = rank_test(ver, ens, lead_time, strat, contrasts=[])    
     
     function [pval, rnks_vals, covar_est, rnks_counts] = rank_test(ver, ens, lead_time, strat, contrasts=[], return_counts = True)
     
-    Performs a generalised GOF test for rank histograms from ensemble
-    forecasts. 
+    Performs a generalised GOF test for rank histograms from ensemble forecasts. 
 
     Input arguments:
 
@@ -348,6 +349,7 @@ def rank_test(ver, ens, lead_time, strat, contrasts=[], return_counts = False):
 
     
 def gen_chi_squ(Z, corr_time, standardised = True):
+
     """function [pval, covar_func] = gen_chi_squ(Z, corr_time, standardised = True)
     Performs a generalised chi square test. 
 
@@ -416,6 +418,7 @@ def gen_chi_squ(Z, corr_time, standardised = True):
 
 
 def contrast_gen(nr_ranks, nr_contrasts):
+
     """function contrasts = contrast_gen(nr_ranks, nr_contrasts)
     
     A reasonable set of orthonormal contrasts is computed. A contrast
@@ -441,3 +444,122 @@ def contrast_gen(nr_ranks, nr_contrasts):
         V[:, ctr] = w
     G = np.linalg.qr(V)
     return(G[0][:,1:])
+
+def cbinary(Y, p):
+
+    """function [pval, emp_proc] = cbinary(Y, p)
+  
+    Computes a cumulative reliability diagram and a pvalue based on scaled Brownian Motion. This is only valid if lead time is equal to one.
+
+    Input arguments:
+
+    Y -- The verification, an array with dimensions [nr_tstamps, 1], first dimension representing time. The verification must assume the values 0 or 1 only.
+    p -- The probabilistic forecasts, an array with dimensions [nr_tstamps, 1], first dimension representing time and second dimension representing the forecast probabilities of the event Y = 1.
+
+    Output arguments:
+
+    emp_proc -- The empirical process evaluated at the order statistics of p (smallest to largest). This should be a standard Brownian motion on the unit interval with scaled time
+
+    pval -- The p-value of the test.
+
+    Disclaimer: Use at your own risk!
+
+    (c) Jochen Broecker, 2020
+    """
+    # function body
+
+    s_Y = Y.shape
+    s_p = p.shape
+    nr_tstamps = s_Y[0]
+    ind = np.argsort(p, axis = 0).reshape((nr_tstamps,))
+    emp_proc = np.cumsum(Y[ind] - p[ind]) / np.sqrt(nr_tstamps)
+    tstat = np.max(np.abs(emp_proc))
+    mean_cond_var = np.mean(p * (1 - p), axis = 0)
+    pval = brown_survival(tstat/np.sqrt(mean_cond_var))
+    # Kac-Erdos formula
+    
+    return(pval, emp_proc/np.sqrt(mean_cond_var))
+
+def cmean(Y, p):
+
+    """function [pval, emp_proc] = cmean(Y, p)
+  
+    Computes a cumulative error between verification and conditional mean and a pvalue based on scaled Brownian Motion. This is only valid if lead time is equal to one.
+
+    Input arguments:
+
+    Y -- The verification, an array with dimensions [nr_tstamps, 1], first dimension representing time. The verification must assume real values.
+
+    p -- The conditional mean forecasts, an array with dimensions [nr_tstamps, 1], first dimension representing time and second dimension representing the conditional mean forecast of Y. Values must be real.
+
+    Output arguments:
+
+    emp_proc -- The empirical process evaluated at the order statistics of p (smallest to largest). This should be a standard Brownian motion on the unit interval with scaled time
+
+    pval -- The p-value of the test.
+
+    Disclaimer: Use at your own risk!
+
+    (c) Jochen Broecker, 2020
+    """
+    # function body
+
+    s_Y = Y.shape
+    s_p = p.shape
+    nr_tstamps = s_Y[0]
+    ind = np.argsort(p, axis = 0).reshape((nr_tstamps,))
+    emp_proc = np.cumsum(Y[ind] - p[ind]) / np.sqrt(nr_tstamps)
+    tstat = np.max(np.abs(emp_proc))
+    mean_cond_var = np.mean((Y - p)**2, axis = 0)
+    pval = brown_survival(tstat/np.sqrt(mean_cond_var))
+    # Kac-Erdos formula
+    
+    return(pval, emp_proc/np.sqrt(mean_cond_var))
+
+def cquant(Y, p, alph):
+
+    """function [pval, emp_proc] = cquant(Y, p, alph)
+  
+    Computes a cumulative error and a pvalue based on scaled Brownian Motion. This is only valid if lead time is equal to one.
+
+    Input arguments:
+
+    Y -- The verification, an array with dimensions [nr_tstamps, 1], first dimension representing time. The verification must assume real values.
+    p -- The probabilistic forecasts, an array with dimensions [nr_tstamps, 1], first dimension representing time and second dimension representing the quantile forecast.
+    alph -- level of the quantile. This must be a number between zeor and one
+
+
+    Output arguments:
+
+    emp_proc -- The empirical process evaluated at the order statistics of p (smallest to largest). This should be a standard Brownian motion on the unit interval with scaled time
+
+    pval -- The p-value of the test.
+
+    Disclaimer: Use at your own risk!
+
+    (c) Jochen Broecker, 2020
+    """
+    # function body
+
+    s_Y = Y.shape
+    s_p = p.shape
+    nr_tstamps = s_Y[0]
+    ind = np.argsort(p, axis = 0).reshape((nr_tstamps,))
+    emp_proc = np.cumsum( (1.0 * (Y[ind] < p[ind]) - alph)) / np.sqrt(nr_tstamps)
+    tstat = np.max(np.abs(emp_proc))
+    mean_cond_var = alph * (1 - alph)
+    pval = brown_survival(tstat/np.sqrt(mean_cond_var))
+    # Kac-Erdos formula
+    
+    return(pval, emp_proc/np.sqrt(mean_cond_var))
+
+def brown_survival(x):
+    """function sm = brown_survival(x)
+
+    calculates Prop(sup |W(t)| > x) where W is standard Brownian motion and sup is over the unit interval."""
+    
+    mxk = 10000
+    k = np.arange(0, mxk)
+    sm = 1 - (4 / np.pi) * np.sum(((-1)**k/(2 * k + 1)) * np.exp(-np.pi**2 * (2 * k + 1)**2 / (8 * x**2)))
+    # Above is Kac Erdos
+    return(sm)
